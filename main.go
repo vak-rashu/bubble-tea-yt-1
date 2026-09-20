@@ -3,45 +3,54 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 )
 
-type isEven bool
-
 type model struct {
-	num int
-	is  isEven
+	choices  []string
+	cursor   int
+	selected map[int]struct{}
 }
 
 func initialModel() model {
-	return model{num: 5}
-}
-
-func isEvenOrNot(num int) tea.Cmd {
-	return func() tea.Msg {
-		if num%2 == 0 {
-			return isEven(true)
-		}
-		return isEven(false)
+	return model{
+		choices: []string{
+			"I have to do house chores.",
+			"I have to get groceries",
+			"I have to do laundry",
+		},
+		selected: make(map[int]struct{}),
 	}
 }
 
 func (m model) Init() tea.Cmd {
-	return isEvenOrNot(m.num)
+	return nil
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case isEven:
-		m.is = msg
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		switch msg.String() {
-		case "ctrl+c":
+		case "ctrl+c", "q":
 			return m, tea.Quit
+		case "j":
+			if m.cursor > 0 {
+				m.cursor--
+			}
 		case "k":
-			isEvenOrNot(m.num)
+			if m.cursor < len(m.choices)-1 {
+				m.cursor++
+			}
+		case "enter", "space":
+			_, ok := m.selected[m.cursor]
+			if ok {
+				delete(m.selected, m.cursor)
+			} else {
+				m.selected[m.cursor] = struct{}{}
+			}
 		}
 	}
 	return m, nil
@@ -49,13 +58,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() tea.View {
 
-	// _, err := fmt.Scan(&m.num)
-	// if err != nil {
-	// 	panic(err)
-	// }
+	var s strings.Builder
+	s.WriteString("Choose from the list:\n\n")
+	for i, c := range m.choices {
+		cur := " "
+		if m.cursor == i {
+			cur = ">"
+		}
 
-	s := fmt.Sprintf("Num: %d\nStatus: %v", m.num, m.is)
-	return tea.NewView(s)
+		checked := " "
+		if _, ok := m.selected[i]; ok {
+			checked = "x"
+		}
+
+		fmt.Fprintf(&s, "%s [%s] %s\n", cur, checked, c)
+	}
+
+	s.WriteString("\nPress q to quit.\n")
+
+	return tea.NewView(s.String())
 }
 
 func main() {
