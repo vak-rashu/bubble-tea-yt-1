@@ -2,27 +2,14 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 )
 
 type model struct {
-	choices  []string
-	cursor   int
-	selected map[int]struct{}
-}
-
-func initialModel() model {
-	return model{
-		choices: []string{
-			"I have to do house chores.",
-			"I have to get groceries",
-			"I have to do laundry",
-		},
-		selected: make(map[int]struct{}),
-	}
+	choiceList []string
+	cursor     int
+	selected   map[int]struct{}
 }
 
 func (m model) Init() tea.Cmd {
@@ -31,57 +18,62 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
+
 		case "j":
 			if m.cursor > 0 {
 				m.cursor--
 			}
 		case "k":
-			if m.cursor < len(m.choices)-1 {
+			if m.cursor < len(m.choiceList)-1 {
 				m.cursor++
 			}
-		case "enter", "space":
-			_, ok := m.selected[m.cursor]
-			if ok {
+		case "space":
+			if _, ok := m.selected[m.cursor]; ok {
 				delete(m.selected, m.cursor)
 			} else {
 				m.selected[m.cursor] = struct{}{}
 			}
 		}
 	}
+
 	return m, nil
 }
 
 func (m model) View() tea.View {
+	s := "Choose from the list:\n\n"
 
-	var s strings.Builder
-	s.WriteString("Choose from the list:\n\n")
-	for i, c := range m.choices {
-		cur := " "
+	for i, v := range m.choiceList {
+		cursor := ""
+		check := ""
+
 		if m.cursor == i {
-			cur = ">"
+			cursor = ">"
 		}
 
-		checked := " "
 		if _, ok := m.selected[i]; ok {
-			checked = "x"
+			check = "+"
 		}
 
-		fmt.Fprintf(&s, "%s [%s] %s\n", cur, checked, c)
+		s += fmt.Sprintf("%s [%s] %s\n", cursor, check, v)
 	}
-
-	s.WriteString("\nPress q to quit.\n")
-
-	return tea.NewView(s.String())
+	return tea.NewView(s)
 }
 
 func main() {
-	p := tea.NewProgram(initialModel())
+	p := tea.NewProgram(model{
+		choiceList: []string{"I have to do laundry",
+			"I have to do house chores at 9pm.",
+			"I have to go to the garden",
+		},
+
+		selected: make(map[int]struct{}),
+	})
+
 	if _, err := p.Run(); err != nil {
-		os.Exit(1)
+		panic(err)
 	}
 }
